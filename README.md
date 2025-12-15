@@ -1,4 +1,4 @@
-# Aether Deck - リリース
+# Aether Deck
 
 このリポジトリは、Aether Deck の配布ファイルを管理するためのリポジトリです。
 
