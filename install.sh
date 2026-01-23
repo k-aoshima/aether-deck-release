@@ -280,9 +280,17 @@ install_dependencies() {
 
 # アプリケーションのビルド
 build_application() {
-  log_info "Building application..."
+  log_info "Checking if build is needed..."
   
   cd "$SOURCE_DIR"
+  
+  # .nextディレクトリが存在する場合はビルド済みとみなしてスキップ
+  if [ -d ".next" ]; then
+    log_success "Build artifacts found (.next directory exists), skipping build"
+    return 0
+  fi
+  
+  log_info "Building application..."
   
   if [ "$PACKAGE_MANAGER" = "yarn" ]; then
     yarn build
