@@ -56,13 +56,17 @@ confirm_uninstall() {
   
   # 標準入力が端末でない場合（パイプ経由など）は確認をスキップ
   if [ ! -t 0 ]; then
-    log_warning "Non-interactive mode detected. Use AETHER_UNINSTALL_YES=1 to confirm."
-    log_info "Proceeding with uninstallation..."
+    log_info "Non-interactive mode detected. Proceeding with uninstallation..."
     return 0
   fi
   
   # 対話的環境の場合のみ確認プロンプトを表示
-  read -p "Are you sure you want to uninstall Aether Deck? (y/N): " -n 1 -r
+  if ! read -t 5 -p "Are you sure you want to uninstall Aether Deck? (y/N): " -n 1 -r 2>/dev/null; then
+    # タイムアウトまたは読み取りエラーの場合（非対話的環境）
+    log_info "Non-interactive mode detected. Proceeding with uninstallation..."
+    return 0
+  fi
+  
   echo ""
   
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
