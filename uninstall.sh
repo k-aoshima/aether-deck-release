@@ -47,6 +47,21 @@ confirm_uninstall() {
   fi
   
   echo ""
+  
+  # 環境変数で確認をスキップできるようにする
+  if [ "${AETHER_UNINSTALL_YES:-}" = "1" ] || [ "${AETHER_UNINSTALL_YES:-}" = "true" ]; then
+    log_info "Auto-confirming uninstallation (AETHER_UNINSTALL_YES is set)"
+    return 0
+  fi
+  
+  # 標準入力が端末でない場合（パイプ経由など）は確認をスキップ
+  if [ ! -t 0 ]; then
+    log_warning "Non-interactive mode detected. Use AETHER_UNINSTALL_YES=1 to confirm."
+    log_info "Proceeding with uninstallation..."
+    return 0
+  fi
+  
+  # 対話的環境の場合のみ確認プロンプトを表示
   read -p "Are you sure you want to uninstall Aether Deck? (y/N): " -n 1 -r
   echo ""
   
