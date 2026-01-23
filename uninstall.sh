@@ -57,15 +57,25 @@ confirm_uninstall() {
   # 標準入力が端末でない場合（パイプ経由など）は確認をスキップ
   # [ -t 0 ] は標準入力が端末（TTY）かどうかをチェック
   # curl | bash の場合、標準入力はパイプなので false になる
-  if [ ! -t 0 ] || [ ! -t 1 ]; then
+  if [ ! -t 0 ]; then
+    log_info "Non-interactive mode detected. Proceeding with uninstallation..."
+    return 0
+  fi
+  
+  # 標準出力が端末でない場合も非対話的と判断
+  if [ ! -t 1 ]; then
     log_info "Non-interactive mode detected. Proceeding with uninstallation..."
     return 0
   fi
   
   # 対話的環境の場合のみ確認プロンプトを表示
-  # read コマンドは標準入力がパイプの場合、パイプが閉じられるまで待つ可能性がある
-  # そのため、上記の [ ! -t 0 ] チェックで先に処理をスキップする
-  read -p "Are you sure you want to uninstall Aether Deck? (y/N): " -n 1 -r
+  # ただし、read コマンドが失敗する可能性があるため、エラーハンドリングを追加
+  if ! read -p "Are you sure you want to uninstall Aether Deck? (y/N): " -n 1 -r 2>/dev/null; then
+    # read が失敗した場合（非対話的環境など）は自動的に続行
+    log_info "Non-interactive mode detected. Proceeding with uninstallation..."
+    return 0
+  fi
+  
   echo ""
   
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -79,10 +89,22 @@ remove_binary() {
   if [ -f "$BIN_DIR/aether" ]; then
     log_info "Removing $BIN_DIR/aether (requires sudo)..."
     
-    if sudo rm -f "$BIN_DIR/aether"; then
+    # 非対話的環境では sudo で実行するように促す
+    if [ ! -t 0 ]; then
+      log_error "Cannot remove $BIN_DIR/aether in non-interactive mode."
+      log_warning "Please run with sudo:"
+      echo ""
+      echo "  curl -fsSL https://raw.githubusercontent.com/k-aoshima/aether-deck-release/main/uninstall.sh | sudo bash"
+      echo ""
+      return 1
+    fi
+    
+    # 対話的環境では sudo を試行
+    if sudo rm -f "$BIN_DIR/aether" 2>/dev/null; then
       log_success "Removed $BIN_DIR/aether"
     else
       log_error "Failed to remove $BIN_DIR/aether. You may need to run with sudo."
+      log_warning "Please run: sudo rm -f $BIN_DIR/aether"
       return 1
     fi
   else
