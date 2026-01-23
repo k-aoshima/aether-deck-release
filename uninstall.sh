@@ -55,18 +55,17 @@ confirm_uninstall() {
   fi
   
   # 標準入力が端末でない場合（パイプ経由など）は確認をスキップ
-  if [ ! -t 0 ]; then
+  # [ -t 0 ] は標準入力が端末（TTY）かどうかをチェック
+  # curl | bash の場合、標準入力はパイプなので false になる
+  if [ ! -t 0 ] || [ ! -t 1 ]; then
     log_info "Non-interactive mode detected. Proceeding with uninstallation..."
     return 0
   fi
   
   # 対話的環境の場合のみ確認プロンプトを表示
-  if ! read -t 5 -p "Are you sure you want to uninstall Aether Deck? (y/N): " -n 1 -r 2>/dev/null; then
-    # タイムアウトまたは読み取りエラーの場合（非対話的環境）
-    log_info "Non-interactive mode detected. Proceeding with uninstallation..."
-    return 0
-  fi
-  
+  # read コマンドは標準入力がパイプの場合、パイプが閉じられるまで待つ可能性がある
+  # そのため、上記の [ ! -t 0 ] チェックで先に処理をスキップする
+  read -p "Are you sure you want to uninstall Aether Deck? (y/N): " -n 1 -r
   echo ""
   
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
