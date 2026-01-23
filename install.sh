@@ -244,18 +244,37 @@ download_release() {
   cd "$TEMP_DIR"
   tar -xzf "$TARBALL_FILE"
   
-  # 展開されたディレクトリを探す（リリースアセットの場合は直接展開、タグアーカイブの場合はサブディレクトリ）
+  # 展開されたディレクトリを探す
+  # リリースアセットの場合：bin/, lib/ などが直接展開される
+  # タグアーカイブの場合：aether-deck-0.1.2/ のようなサブディレクトリができる
   EXTRACTED_DIR=$(find . -maxdepth 1 -type d ! -name . ! -name "*.tar.gz" | head -n 1)
   
+  # ディレクトリが見つからない場合、ファイルが直接展開されている可能性がある
   if [ -z "$EXTRACTED_DIR" ]; then
-    error_exit "Failed to extract tarball"
+    # package.jsonが存在するか確認（直接展開されている場合）
+    if [ -f "package.json" ]; then
+      # 直接展開されている場合、現在のディレクトリをSOURCE_DIRとする
+      SOURCE_DIR="$TEMP_DIR"
+      log_success "Files extracted directly to: $SOURCE_DIR"
+    else
+      error_exit "Failed to extract tarball"
+    fi
+  else
+    # 相対パスを正規化（./bin -> bin）
+    EXTRACTED_DIR=$(echo "$EXTRACTED_DIR" | sed 's|^\./||')
+    
+    # bin/ や lib/ などのディレクトリが直接展開されている場合
+    # package.jsonが存在するか確認
+    if [ -f "package.json" ]; then
+      # 直接展開されている場合
+      SOURCE_DIR="$TEMP_DIR"
+      log_success "Files extracted directly to: $SOURCE_DIR"
+    else
+      # サブディレクトリに展開されている場合
+      SOURCE_DIR="${TEMP_DIR}/${EXTRACTED_DIR}"
+      log_success "Extracted to: $SOURCE_DIR"
+    fi
   fi
-  
-  # 相対パスを正規化（./bin -> bin）
-  EXTRACTED_DIR=$(echo "$EXTRACTED_DIR" | sed 's|^\./||')
-  
-  SOURCE_DIR="${TEMP_DIR}/${EXTRACTED_DIR}"
-  log_success "Extracted to: $SOURCE_DIR"
 }
 
 # 依存関係のインストール
