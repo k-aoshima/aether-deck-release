@@ -9,7 +9,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 変数定義
-REPO="k-aoshima/aether_deck"
+REPO="k-aoshima/aether-deck-release"
 INSTALL_DIR="${AETHER_INSTALL_DIR:-$HOME/.local/aether-deck}"
 BIN_DIR="/usr/local/bin"
 TEMP_DIR=$(mktemp -d)
