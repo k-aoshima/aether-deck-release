@@ -398,9 +398,15 @@ install_binary() {
     cp "$SOURCE_DIR/tsconfig.json" "$INSTALL_DIR/"
   fi
   
-  # .nextディレクトリが存在する場合はコピー
+  # .nextディレクトリが存在する場合はコピー（権限を修正）
   if [ -d "$SOURCE_DIR/.next" ]; then
     cp -r "$SOURCE_DIR/.next" "$INSTALL_DIR/"
+    # 権限を修正（所有者を現在のユーザーに、書き込み可能に）
+    chmod -R u+w "$INSTALL_DIR/.next" 2>/dev/null || true
+    # .next/dev ディレクトリが存在する場合は削除（productionモードでは不要）
+    if [ -d "$INSTALL_DIR/.next/dev" ]; then
+      rm -rf "$INSTALL_DIR/.next/dev" 2>/dev/null || true
+    fi
   fi
   
   # yarn.lockまたはpackage-lock.jsonをコピー
@@ -418,11 +424,18 @@ install_binary() {
   
   log_success "Files copied to $INSTALL_DIR"
   
-  # シンボリックリンクの作成（sudoが必要）
-  log_info "Creating symlink in $BIN_DIR (requires sudo)..."
+  # インストールディレクトリの所有権を現在のユーザーに設定
+  log_info "Setting ownership of installation directory..."
+  chmod -R u+w "$INSTALL_DIR" 2>/dev/null || true
   
   # aetherスクリプトのパスを更新
   AETHER_SCRIPT="$INSTALL_DIR/bin/aether"
+  
+  # 実行権限の確認（sudo不要）
+  chmod +x "$AETHER_SCRIPT"
+  
+  # シンボリックリンクの作成（sudoが必要）
+  log_info "Creating symlink in $BIN_DIR (requires sudo)..."
   
   # シンボリックリンクを作成
   if sudo ln -sf "$AETHER_SCRIPT" "$BIN_DIR/aether"; then
@@ -430,9 +443,6 @@ install_binary() {
   else
     error_exit "Failed to create symlink. Please check sudo permissions."
   fi
-  
-  # 実行権限の確認
-  chmod +x "$AETHER_SCRIPT"
   
   log_success "aether command installed"
 }
