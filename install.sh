@@ -245,30 +245,38 @@ download_release() {
   tar -xzf "$TARBALL_FILE"
   
   # package.jsonが存在するか確認（直接展開されている場合）
+  # リリースアセットの場合：bin/, lib/, package.json などが直接展開される
   if [ -f "package.json" ]; then
-    # リリースアセットの場合：bin/, lib/ などが直接展開される
     SOURCE_DIR="$TEMP_DIR"
     log_success "Files extracted directly to: $SOURCE_DIR"
   else
     # タグアーカイブの場合：aether-deck-0.1.2/ のようなサブディレクトリができる
-    EXTRACTED_DIR=$(find . -maxdepth 1 -type d ! -name . ! -name "*.tar.gz" | head -n 1)
+    # ただし、find が bin/ などのディレクトリを見つける可能性があるので、
+    # すべてのディレクトリを確認して、package.json を含むものを探す
+    EXTRACTED_DIR=""
+    for dir in $(find . -maxdepth 1 -type d ! -name . ! -name "*.tar.gz"); do
+      dir=$(echo "$dir" | sed 's|^\./||')
+      if [ -f "${dir}/package.json" ]; then
+        EXTRACTED_DIR="$dir"
+        break
+      fi
+    done
     
     if [ -z "$EXTRACTED_DIR" ]; then
-      error_exit "Failed to extract tarball"
+      error_exit "Failed to find package.json in extracted tarball"
     fi
     
-    # 相対パスを正規化（./bin -> bin）
-    EXTRACTED_DIR=$(echo "$EXTRACTED_DIR" | sed 's|^\./||')
-    
-    # サブディレクトリに展開されている場合
     SOURCE_DIR="${TEMP_DIR}/${EXTRACTED_DIR}"
-    
-    # サブディレクトリ内にpackage.jsonがあるか確認
-    if [ ! -f "${SOURCE_DIR}/package.json" ]; then
-      error_exit "package.json not found in extracted directory"
-    fi
-    
     log_success "Extracted to: $SOURCE_DIR"
+  fi
+  
+  # デバッグ: SOURCE_DIRの内容を確認
+  if [ ! -f "${SOURCE_DIR}/package.json" ]; then
+    error_exit "package.json not found at ${SOURCE_DIR}/package.json"
+  fi
+  
+  if [ ! -d "${SOURCE_DIR}/bin" ]; then
+    error_exit "bin directory not found at ${SOURCE_DIR}/bin"
   fi
 }
 
