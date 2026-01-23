@@ -373,7 +373,7 @@ install_binary() {
   # ソースファイルをコピー
   log_info "Copying files to $INSTALL_DIR..."
   
-  # 必要なファイルとディレクトリをコピー
+  # 必要なファイルとディレクトリをコピー（権限を保持）
   cp -r "$SOURCE_DIR/bin" "$INSTALL_DIR/"
   cp -r "$SOURCE_DIR/lib" "$INSTALL_DIR/"
   cp -r "$SOURCE_DIR/server" "$INSTALL_DIR/"
@@ -401,8 +401,6 @@ install_binary() {
   # .nextディレクトリが存在する場合はコピー（権限を修正）
   if [ -d "$SOURCE_DIR/.next" ]; then
     cp -r "$SOURCE_DIR/.next" "$INSTALL_DIR/"
-    # 権限を修正（所有者を現在のユーザーに、書き込み可能に）
-    chmod -R u+w "$INSTALL_DIR/.next" 2>/dev/null || true
     # .next/dev ディレクトリが存在する場合は削除（productionモードでは不要）
     if [ -d "$INSTALL_DIR/.next/dev" ]; then
       rm -rf "$INSTALL_DIR/.next/dev" 2>/dev/null || true
@@ -424,10 +422,6 @@ install_binary() {
   
   log_success "Files copied to $INSTALL_DIR"
   
-  # インストールディレクトリの所有権を現在のユーザーに設定
-  log_info "Setting ownership of installation directory..."
-  chmod -R u+w "$INSTALL_DIR" 2>/dev/null || true
-  
   # aetherスクリプトのパスを更新
   AETHER_SCRIPT="$INSTALL_DIR/bin/aether"
   
@@ -435,13 +429,34 @@ install_binary() {
   chmod +x "$AETHER_SCRIPT"
   
   # シンボリックリンクの作成（sudoが必要）
-  log_info "Creating symlink in $BIN_DIR (requires sudo)..."
+  log_info "Creating symlink in $BIN_DIR (requires sudo password)..."
   
-  # シンボリックリンクを作成
+  # シンボリックリンクを作成（パスワード入力を求める）
   if sudo ln -sf "$AETHER_SCRIPT" "$BIN_DIR/aether"; then
     log_success "Symlink created: $BIN_DIR/aether -> $AETHER_SCRIPT"
   else
     error_exit "Failed to create symlink. Please check sudo permissions."
+  fi
+  
+  # インストールディレクトリの所有者を現在のユーザーに設定（sudoが必要）
+  log_info "Setting ownership of installation directory (requires sudo password)..."
+  if sudo chown -R "$USER:$(id -gn)" "$INSTALL_DIR"; then
+    log_success "Ownership set to $USER"
+  else
+    log_warning "Failed to set ownership. You may need to run: sudo chown -R $USER:$USER $INSTALL_DIR"
+  fi
+  
+  # インストールディレクトリの権限を設定
+  log_info "Setting permissions on installation directory..."
+  # ディレクトリとファイルに適切な権限を設定
+  find "$INSTALL_DIR" -type d -exec chmod 755 {} \; 2>/dev/null || true
+  find "$INSTALL_DIR" -type f -exec chmod 644 {} \; 2>/dev/null || true
+  # 実行可能ファイルに実行権限を付与
+  find "$INSTALL_DIR/bin" -type f -exec chmod 755 {} \; 2>/dev/null || true
+  find "$INSTALL_DIR" -name "*.sh" -exec chmod 755 {} \; 2>/dev/null || true
+  # .nextディレクトリに書き込み権限を付与（必要に応じて）
+  if [ -d "$INSTALL_DIR/.next" ]; then
+    chmod -R u+w "$INSTALL_DIR/.next" 2>/dev/null || true
   fi
   
   log_success "aether command installed"
