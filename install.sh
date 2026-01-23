@@ -290,12 +290,37 @@ build_application() {
     return 0
   fi
   
+  # scripts/ディレクトリが存在しない場合、prebuildスクリプトを一時的に無効化
+  if [ ! -d "scripts" ]; then
+    log_info "scripts/ directory not found, temporarily disabling prebuild script"
+    if [ -f "package.json" ]; then
+      # package.jsonのバックアップを作成
+      cp package.json package.json.bak
+      # prebuildスクリプトを一時的に無効化
+      if command -v node >/dev/null 2>&1; then
+        node -e "
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (pkg.scripts && pkg.scripts.prebuild) {
+            pkg.scripts.prebuild = 'echo \"Skipping prebuild (scripts/ not found)\"';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          }
+        "
+      fi
+    fi
+  fi
+  
   log_info "Building application..."
   
   if [ "$PACKAGE_MANAGER" = "yarn" ]; then
     yarn build
   else
     npm run build
+  fi
+  
+  # package.jsonのバックアップを復元
+  if [ -f "package.json.bak" ]; then
+    mv package.json.bak package.json
   fi
   
   log_success "Application built"
