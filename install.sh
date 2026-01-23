@@ -380,6 +380,24 @@ install_binary() {
   cp "$SOURCE_DIR/server.js" "$INSTALL_DIR/"
   cp "$SOURCE_DIR/package.json" "$INSTALL_DIR/"
   
+  # src/ディレクトリが存在する場合はコピー（Next.jsアプリに必要）
+  if [ -d "$SOURCE_DIR/src" ]; then
+    cp -r "$SOURCE_DIR/src" "$INSTALL_DIR/"
+  fi
+  
+  # public/ディレクトリが存在する場合はコピー（Next.jsアプリに必要）
+  if [ -d "$SOURCE_DIR/public" ]; then
+    cp -r "$SOURCE_DIR/public" "$INSTALL_DIR/"
+  fi
+  
+  # 設定ファイルをコピー
+  if [ -f "$SOURCE_DIR/next.config.js" ]; then
+    cp "$SOURCE_DIR/next.config.js" "$INSTALL_DIR/"
+  fi
+  if [ -f "$SOURCE_DIR/tsconfig.json" ]; then
+    cp "$SOURCE_DIR/tsconfig.json" "$INSTALL_DIR/"
+  fi
+  
   # .nextディレクトリが存在する場合はコピー
   if [ -d "$SOURCE_DIR/.next" ]; then
     cp -r "$SOURCE_DIR/.next" "$INSTALL_DIR/"
