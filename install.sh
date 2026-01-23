@@ -251,6 +251,9 @@ download_release() {
     error_exit "Failed to extract tarball"
   fi
   
+  # 相対パスを正規化（./bin -> bin）
+  EXTRACTED_DIR=$(echo "$EXTRACTED_DIR" | sed 's|^\./||')
+  
   SOURCE_DIR="${TEMP_DIR}/${EXTRACTED_DIR}"
   log_success "Extracted to: $SOURCE_DIR"
 }
