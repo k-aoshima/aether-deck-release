@@ -244,10 +244,6 @@ download_release() {
   cd "$TEMP_DIR"
   tar -xzf "$TARBALL_FILE"
   
-  # デバッグ: 展開後の内容を確認
-  log_info "Checking extracted contents..."
-  ls -la . 2>/dev/null | head -20 || true
-  
   # package.jsonが存在するか確認（直接展開されている場合）
   # リリースアセットの場合：bin/, lib/, package.json などが直接展開される
   if [ -f "package.json" ]; then
@@ -260,17 +256,14 @@ download_release() {
     EXTRACTED_DIR=""
     for dir in $(find . -maxdepth 1 -type d ! -name . ! -name "*.tar.gz" | sort); do
       dir=$(echo "$dir" | sed 's|^\./||')
-      log_info "Checking directory: $dir"
       if [ -f "${dir}/package.json" ]; then
         EXTRACTED_DIR="$dir"
-        log_info "Found package.json in directory: $dir"
         break
       fi
     done
     
     if [ -z "$EXTRACTED_DIR" ]; then
       # package.jsonが見つからない場合、もう一度現在のディレクトリを確認
-      log_warning "package.json not found in subdirectories, re-checking current directory..."
       if [ -f "package.json" ]; then
         SOURCE_DIR="$TEMP_DIR"
         log_success "Files extracted directly to: $SOURCE_DIR"
