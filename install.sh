@@ -145,20 +145,40 @@ get_latest_version() {
   
   # GitHub Personal Access Tokenが設定されている場合は使用
   if [ -n "${GITHUB_TOKEN:-}" ]; then
-    RELEASE_INFO=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "$API_URL")
+    HTTP_CODE=$(curl -s -o /tmp/release_response.json -w "%{http_code}" -H "Authorization: token ${GITHUB_TOKEN}" "$API_URL")
+    RELEASE_INFO=$(cat /tmp/release_response.json)
+    rm -f /tmp/release_response.json
   else
-    RELEASE_INFO=$(curl -s "$API_URL")
+    HTTP_CODE=$(curl -s -o /tmp/release_response.json -w "%{http_code}" "$API_URL")
+    RELEASE_INFO=$(cat /tmp/release_response.json)
+    rm -f /tmp/release_response.json
+  fi
+  
+  # HTTPステータスコードを確認
+  if [ "$HTTP_CODE" != "200" ]; then
+    ERROR_MSG=$(echo "$RELEASE_INFO" | grep -o '"message": *"[^"]*"' | head -n 1 | cut -d '"' -f 4)
+    if [ "$HTTP_CODE" = "404" ]; then
+      if [ -n "$ERROR_MSG" ]; then
+        error_exit "Release not found (HTTP 404): $ERROR_MSG. Please create a release first by running: git tag v0.1.0 && git push origin v0.1.0"
+      else
+        error_exit "Release not found (HTTP 404). No releases available. Please create a release first by running: git tag v0.1.0 && git push origin v0.1.0"
+      fi
+    elif [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
+      error_exit "Authentication failed (HTTP $HTTP_CODE). If this is a private repository, please set GITHUB_TOKEN environment variable with a token that has 'repo' scope."
+    else
+      error_exit "Failed to fetch latest version (HTTP $HTTP_CODE): $ERROR_MSG"
+    fi
   fi
   
   VERSION=$(echo "$RELEASE_INFO" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
   
   if [ -z "$VERSION" ]; then
     # エラーメッセージを確認
-    ERROR_MSG=$(echo "$RELEASE_INFO" | grep -o '"message": *"[^"]*"' | head -n 1)
+    ERROR_MSG=$(echo "$RELEASE_INFO" | grep -o '"message": *"[^"]*"' | head -n 1 | cut -d '"' -f 4)
     if [ -n "$ERROR_MSG" ]; then
-      error_exit "Failed to fetch latest version: $ERROR_MSG. If this is a private repository, please set GITHUB_TOKEN environment variable."
+      error_exit "Failed to parse version: $ERROR_MSG. If this is a private repository, please set GITHUB_TOKEN environment variable."
     else
-      error_exit "Failed to fetch latest version. Please check your internet connection and try again."
+      error_exit "Failed to parse version from release information. Please check your internet connection and try again."
     fi
   fi
   
