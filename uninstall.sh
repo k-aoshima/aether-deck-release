@@ -119,11 +119,39 @@ remove_install_dir() {
   if [ -d "$INSTALL_DIR" ]; then
     log_info "Removing $INSTALL_DIR..."
     
-    if rm -rf "$INSTALL_DIR"; then
+    # 所有者が root の場合、sudo で削除する必要がある
+    # まず、通常のユーザーで削除を試行
+    if rm -rf "$INSTALL_DIR" 2>/dev/null; then
       log_success "Removed $INSTALL_DIR"
     else
-      log_error "Failed to remove $INSTALL_DIR"
-      return 1
+      # 削除に失敗した場合、所有者が root の可能性がある
+      # sudo で実行されている場合、または sudo で削除を試行
+      if [ "$(id -u)" = "0" ] || [ -n "${SUDO_USER:-}" ]; then
+        # root で実行されている、または sudo で実行されている場合
+        if sudo rm -rf "$INSTALL_DIR" 2>/dev/null; then
+          log_success "Removed $INSTALL_DIR (using sudo)"
+        else
+          log_error "Failed to remove $INSTALL_DIR even with sudo"
+          log_warning "Please run manually: sudo rm -rf $INSTALL_DIR"
+          return 1
+        fi
+      else
+        # sudo で実行されていない場合、所有者を変更してから削除を試行
+        log_info "Attempting to change ownership before removal..."
+        if sudo chown -R "$USER:$(id -gn)" "$INSTALL_DIR" 2>/dev/null; then
+          if rm -rf "$INSTALL_DIR"; then
+            log_success "Removed $INSTALL_DIR"
+          else
+            log_error "Failed to remove $INSTALL_DIR"
+            log_warning "Please run manually: sudo rm -rf $INSTALL_DIR"
+            return 1
+          fi
+        else
+          log_error "Failed to change ownership. Please run with sudo:"
+          log_warning "  sudo rm -rf $INSTALL_DIR"
+          return 1
+        fi
+      fi
     fi
   else
     log_info "No installation directory found at $INSTALL_DIR"
