@@ -87,26 +87,13 @@ confirm_uninstall() {
 # バイナリの削除
 remove_binary() {
   if [ -f "$BIN_DIR/aether" ]; then
-    log_info "Removing $BIN_DIR/aether (requires sudo)..."
+    log_info "Removing $BIN_DIR/aether (requires sudo password)..."
     
-    # sudo で実行されているか確認（SUDO_USER 環境変数が設定されている）
-  # または、非対話的環境でも sudo で実行されている場合は直接削除を試行
-  if [ ! -t 0 ] && [ -z "${SUDO_USER:-}" ]; then
-    # 非対話的環境で sudo で実行されていない場合
-    log_error "Cannot remove $BIN_DIR/aether in non-interactive mode."
-    log_warning "Please run with sudo:"
-    echo ""
-    echo "  curl -fsSL https://raw.githubusercontent.com/k-aoshima/aether-deck-release/main/uninstall.sh | sudo bash"
-    echo ""
-    return 1
-  fi
-  
-  # sudo で実行されている場合、または対話的環境では sudo を試行
-  if sudo rm -f "$BIN_DIR/aether" 2>/dev/null; then
+    # sudo でパスワード入力を求めて削除
+    if sudo rm -f "$BIN_DIR/aether"; then
       log_success "Removed $BIN_DIR/aether"
     else
-      log_error "Failed to remove $BIN_DIR/aether. You may need to run with sudo."
-      log_warning "Please run: sudo rm -f $BIN_DIR/aether"
+      log_error "Failed to remove $BIN_DIR/aether"
       return 1
     fi
   else
